@@ -6,3 +6,5 @@ POSTGRES_USER=some-postgres-user <br />
 POSTGRES_PASSWORD=some-postgres-password <br />
 POSTGRES_DB=users-api-database-name <br />
 POSTGRES_DB2=documents-api-database-name
+
+Запуск приложения производится командой docker compose --env-file .env up -d в директории deploy-an-app
