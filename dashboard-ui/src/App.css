@@ -1,0 +1,17 @@
+.list .action {
+  cursor: pointer;
+}
+
+.submit-form {
+  max-width: 300px;
+  margin: auto;
+}
+
+.edit-form {
+  max-width: 300px;
+  margin: auto;
+}
+
+.custom-margin {
+  margin-bottom: 5px;
+}

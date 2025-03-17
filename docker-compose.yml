@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: postgres:17.4
+    container_name: postgres
+    environment:
+      POSTGRES_USER: "$POSTGRES_USER"
+      POSTGRES_PASSWORD: "$POSTGRES_PASSWORD"
+      POSTGRES_DB: "$POSTGRES_DB"
+      PGDATA: /var/lib/postgresql/data
+    networks:
+      - app_net
+    expose:
+      - 5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database-init-script/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: always
+  users-api:
+    image: app/users-api
+    build: ./users-api
+    container_name: users-api
+    networks:
+      - app_net
+    environment:
+      DATABASE_USERNAME: "$POSTGRES_USER"
+      DATABASE_PASSWORD: "$POSTGRES_PASSWORD"
+      DATABASE_NAME: "$POSTGRES_DB"
+      DATABASE_HOST: "postgres"
+      DATABASE_PORT: "5432"
+      PORT: "3000"
+      HOST: "0.0.0.0"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://127.0.0.1:3000/users/health-check | grep -q 'configuration' || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+  documents-api:
+    image: app/documents-api
+    build: ./documents-api
+    container_name: documents-api
+    networks:
+      - app_net
+    environment:
+      DATABASE_USERNAME: "$POSTGRES_USER"
+      DATABASE_PASSWORD: "$POSTGRES_PASSWORD"
+      DATABASE_NAME: "$POSTGRES_DB2"
+      DATABASE_HOST: "postgres"
+      DATABASE_PORT: "5432"
+      PORT: "3001"
+      HOST: "0.0.0.0"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://127.0.0.1:3001/documents/health-check | grep -q 'configuration' || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+  dashboard-ui:
+    image: app/dashboard-ui
+    build: ./dashboard-ui
+    container_name: dashboard-ui
+    networks:
+      - app_net
+    environment:
+      PORT: "3091"
+      HOST: "0.0.0.0"
+      USERS_API_BASE_URL: "users"
+      DOCUMENTS_API_BASE_URL: "documents"
+    depends_on:
+      users-api:
+        condition: service_healthy
+      documents-api:
+        condition: service_healthy
+  nginx:
+    image: nginx:1.27.4
+    container_name: nginx
+    networks:
+      - app_net
+    ports:
+      - "0.0.0.0:80:80"
+    volumes:
+      - ./nginx/app.conf:/etc/nginx/conf.d/app.conf:ro
+    depends_on:
+      users-api:
+        condition: service_healthy
+      documents-api:
+        condition: service_healthy
+      dashboard-ui:
+        condition: service_started
+networks:
+  app_net:
+    driver: bridge
+volumes:
+  pgdata:
